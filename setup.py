@@ -6,9 +6,9 @@ import sys
 VERSION = '0.1dev'
 
 requires = [
-#    'matplotlib',
+    'matplotlib',
     'numpy',
-    'pyaudio',
+    'pyalsaaudio',
 ]
 tests_require = requires + ['mock']
 
@@ -59,4 +59,5 @@ setup(name='ampanal',
       entry_points="""\
       [console_scripts]
       measure = ampanal.scripts.measure:main
+      freqresponse = ampanal.scripts.freqresponse:main
       """)

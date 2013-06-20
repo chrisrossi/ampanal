@@ -1,5 +1,6 @@
 from .usbtmc import USBTMC
 
+import math
 import numpy
 
 
@@ -17,6 +18,12 @@ class Oscope(USBTMC):
     """
     Rigol DS1000 series.
     """
+    timescales = [
+        5e-9, 10e-9, 20e-9, 50e-9, 100e-9, 200e-9, 500e-9,
+        1e-6, 2e-6, 5e-6, 10e-6, 20e-6, 50e-6, 100e-6, 200e-6, 500e-6,
+        1e-3, 2e-3, 5e-3, 10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3,
+        1, 2, 5, 10, 20, 50]
+
     def __init__(self, device='/dev/oscope'):
         super(Oscope, self).__init__(device)
         self.device = device
@@ -36,13 +43,21 @@ class Oscope(USBTMC):
     def local_mode(self):
         self.write(":KEY:FORC")
 
-    @property
-    def timescale(self):
+    @apply
+    def timescale():
         """
         Voltage scale.
         """
-        self.write(":TIM:SCAL?")
-        return float(self.read(20))
+        def read(self):
+            self.write(":TIM:SCAL?")
+            return float(self.read(20))
+
+        def write(self, scale):
+            self.write(":TIM:SCAL %0.9f" % scale)
+            while self.timescale != scale:
+                pass
+
+        return property(read, write)
 
     @property
     def timeoffset(self):
@@ -76,7 +91,7 @@ class Channel(USBTMC):
         self.write(":%s:OFFS?" % self.id)
         return float(self.read(20))
 
-    def capture(self):
+    def capture_voltage(self):
         """
         Capture screen full of data.
         """
@@ -99,6 +114,13 @@ class Channel(USBTMC):
         voltscale = self.voltscale
         voltoffset = self.voltoffset
         data = (data - 130.0 - voltoffset / voltscale * 25) / 25 * voltscale
+        return data
+
+    def capture(self):
+        """
+        Capture screen full of data.
+        """
+        data = self.capture_voltage()
 
         # Create time scale
         points = len(data)
@@ -115,3 +137,23 @@ class Channel(USBTMC):
             time = time[:points]
 
         return data, time
+
+    @property
+    def rms(self):
+        data = self.capture_voltage()
+        polarity = data[0] > 0
+        while len(data) and (data[0] > 0) == polarity:
+            data = data[1:]
+        if not len(data):
+            return 0.0
+        polarity = data[-1] > 0
+        while len(data) and (data[-1] > 0) == polarity:
+            data = data[:-1]
+        if not len(data):
+            return 0.0
+        return math.sqrt((data ** 2).mean())
+
+    @property
+    def zero(self):
+        adjusted = self.rms / self.voltscale
+        return adjusted < 0.1

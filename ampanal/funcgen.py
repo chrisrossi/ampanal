@@ -1,6 +1,7 @@
+import alsaaudio as alsa
 import math
-import pyaudio
 import struct
+import threading
 
 from itertools import islice
 
@@ -9,34 +10,31 @@ def packframe(i):
     return struct.pack("<h", i)
 
 
-class FunctionGenerator(object):
+class FunctionGenerator(threading.Thread):
+    daemon = True
+    stopped = False
 
-    def __init__(self, framerate=44100):
+    def __init__(self, framerate=44100, bufsize=4096):
+        super(FunctionGenerator, self).__init__()
         self.framerate = framerate
+        self.bufsize = bufsize
         self.function = silence_function()
-        self.audio = pyaudio.PyAudio()
-        self.stream = self.audio.open(
-            format=pyaudio.get_format_from_width(2),
-            channels=1,
-            rate=self.framerate,
-            output=True,
-            stream_callback=self.generate,
-            frames_per_buffer=2<<12
-        )
-
-    def start(self):
-       self.stream.start_stream()
+        self.stream = pcm = alsa.PCM()
+        pcm.setchannels(1)
+        pcm.setrate(framerate)
+        pcm.setformat(alsa.PCM_FORMAT_S16_LE)
+        pcm.setperiodsize(bufsize)
 
     def close(self):
-        self.stream.close()
-        self.audio.terminate()
+        self.stopped = True
 
-    def generate(self, in_data, frame_count, time_info, status):
-        data = ''.join(map(packframe, islice(self.function, frame_count)))
-        return data, pyaudio.paContinue
+    def run(self):
+        while not self.stopped:
+            frames = map(packframe, islice(self.function, self.bufsize))
+            self.stream.write(''.join(frames))
 
     def sine(self, freq=1000, amplitude=1.0):
-        self.function = iter(sine_function(amplitude, freq, self.framerate))
+        self.function = sine_function(amplitude, freq, self.framerate)
 
     def silence(self):
         self.function = silence_function()

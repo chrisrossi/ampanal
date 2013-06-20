@@ -1,5 +1,4 @@
 from ampanal.funcgen import FunctionGenerator
-import wave # magic import makes this work, accidentally found magic
 
 fg = FunctionGenerator()
 fg.start()

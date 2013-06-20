@@ -100,12 +100,11 @@ class Channel(USBTMC):
         voltoffset = self.voltoffset
         data = (data - 130.0 - voltoffset / voltscale * 25) / 25 * voltscale
 
-        # For some reason 0 on the time scale is at 6/10 divisions.
+        # Create time scale
         points = len(data)
         perdiv = points / 12.0
         timescale = self.oscope.timescale
         timeoffset = self.oscope.timeoffset
-        print "huh?", timescale, timeoffset
         end = points / perdiv * timescale / 2.0
         begin = -end
         step = timescale / perdiv

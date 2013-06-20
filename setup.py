@@ -6,8 +6,9 @@ import sys
 VERSION = '0.1dev'
 
 requires = [
+#    'matplotlib',
     'numpy',
-    'matplotlib'
+    'pyaudio',
 ]
 tests_require = requires + ['mock']
 

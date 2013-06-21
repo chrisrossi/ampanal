@@ -63,28 +63,18 @@ class FreqResponse(object):
         oscope.timescale = self.timescale_for_freq(freq)
 
         # Make abolutely certain were not measuring the prev freq
-        fg.silence()
-        while not channel.zero:
-            pass
+        #fg.silence()
+        #while not channel.zero:
+        #    pass
 
         fg.sine(freq)
-        print "%d hz" % freq
-        while channel.zero:
-            pass
+        print "%0.3f hz" % freq
+        measured = channel.freq
+        while abs((measured - freq) / freq) > 0.1:
+            measured = channel.freq
 
-        # Keep reading until readings stabilize
-        # Need two readings within 1% of each other
-        prev_reading = channel.rms
-        while True:
-            reading = channel.rms
-            while reading == prev_reading:
-                # if they're exactly the same, it's probably not a new reading
-                reading = channel.rms
-            percent_difference = abs(reading - prev_reading) / reading
-            if percent_difference <= 0.01:
-                fg.silence()
-                return 20 * math.log10(reading / self.zerodb)
-            prev_reading = reading
+        fg.silence()
+        return 20 * math.log10(channel.rms / self.zerodb)
 
 
 def exprange(start, end, exp):

@@ -140,18 +140,13 @@ class Channel(USBTMC):
 
     @property
     def rms(self):
-        data = self.capture_voltage()
-        polarity = data[0] > 0
-        while len(data) and (data[0] > 0) == polarity:
-            data = data[1:]
-        if not len(data):
-            return 0.0
-        polarity = data[-1] > 0
-        while len(data) and (data[-1] > 0) == polarity:
-            data = data[:-1]
-        if not len(data):
-            return 0.0
-        return math.sqrt((data ** 2).mean())
+        self.write(":MEAS:VRMS? %s" % self.id)
+        return float(self.read(20))
+
+    @property
+    def freq(self):
+        self.write(":MEAS:FREQ? %s" % self.id)
+        return float(self.read(20).lstrip(">"))
 
     @property
     def zero(self):

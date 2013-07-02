@@ -15,6 +15,7 @@ def main():
         exp = math.sqrt(math.sqrt(2))
         freqs = list(exprange(start, end, exp))
         gains = map(worker.measure, freqs)
+        worker.fg.silence()
 
         fig, ax = plot.subplots()
         ax.plot(freqs, gains)
@@ -22,8 +23,18 @@ def main():
         ax.set_xticks(list(exprange(start, end, 2)))
         ax.get_xaxis().set_major_formatter(ticker.ScalarFormatter())
         ax.set_xlim(freqs[0], freqs[-1])
-        ax.set_ylim(min(-3.0, min(gains)), max(3.0, max(gains)))
-        plot.show()
+        limits = filter(lambda x: x is not None, gains)
+        ax.set_ylim(min(-5.0, min(limits) - 2.0), max(5.0, max(limits) + 2.0))
+        plot.show(block=False)
+        while True:
+            try:
+                raw_input("measure> ")
+            except EOFError:
+                break
+            gains = map(worker.measure, freqs)
+            worker.fg.silence()
+            ax.plot(freqs, gains)
+            plot.show(block=False)
     finally:
         worker.oscope.local_mode()
 
@@ -47,6 +58,12 @@ class FreqResponse(object):
             typed = raw_input("calibrate> ")
             if typed == '':
                 break
+            try:
+                freq = int(typed)
+                oscope.timescale = self.timescale_for_freq(freq)
+                fg.sine(freq)
+            except:
+                pass
 
         self.zerodb = channel.rms
 
@@ -63,18 +80,11 @@ class FreqResponse(object):
         oscope.timescale = self.timescale_for_freq(freq)
 
         # Make abolutely certain were not measuring the prev freq
-        #fg.silence()
-        #while not channel.zero:
-        #    pass
-
         fg.sine(freq)
-        print "%0.3f hz" % freq
-        measured = channel.freq
-        while abs((measured - freq) / freq) > 0.1:
-            measured = channel.freq
-
-        fg.silence()
-        return 20 * math.log10(channel.rms / self.zerodb)
+        if channel.wait_freq(freq, 2):
+            rms = channel.rms
+            if rms:
+                return 20 * math.log10(rms / self.zerodb)
 
 
 def exprange(start, end, exp):

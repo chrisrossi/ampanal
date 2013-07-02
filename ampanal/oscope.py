@@ -1,7 +1,7 @@
 from .usbtmc import USBTMC
 
-import math
 import numpy
+import time
 
 
 """
@@ -130,13 +130,13 @@ class Channel(USBTMC):
         end = points / perdiv * timescale / 2.0
         begin = -end
         step = timescale / perdiv
-        time = numpy.arange(begin + timeoffset, end + timeoffset, step)
+        times= numpy.arange(begin + timeoffset, end + timeoffset, step)
 
         # If we generated too many points due to overflow, crop the length of time.
-        if (time.size > data.size):
-            time = time[:points]
+        if (times.size > data.size):
+            times= times[:points]
 
-        return data, time
+        return data, times
 
     @property
     def rms(self):
@@ -152,3 +152,12 @@ class Channel(USBTMC):
     def zero(self):
         adjusted = self.rms / self.voltscale
         return adjusted < 0.1
+
+    def wait_freq(self, freq, wait_time=None):
+        start = time.time()
+        measured = self.freq
+        while abs((measured - freq) / freq) > 0.1:
+            if wait_time and (time.time() - start > wait_time):
+                return False
+            measured = self.freq
+        return True
